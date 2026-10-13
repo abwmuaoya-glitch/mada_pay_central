@@ -1,5 +1,0 @@
-flutter:
-  uses-material-design: true
-
-  assets:
-    - assets/mada_login_design.jpg

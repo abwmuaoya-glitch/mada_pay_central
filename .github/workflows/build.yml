@@ -38,29 +38,51 @@ jobs:
       - name: Generate Android and Web platform files
         run: flutter create --platforms=android,web --project-name=mada_pay_central .
 
-      - name: Configure Android biometric support
+      - name: Configure Android permissions and SDK
         shell: bash
         run: |
-          MAIN="android/app/src/main/kotlin/com/example/mada_pay_central/MainActivity.kt"
-          if [ -f "$MAIN" ]; then
-            sed -i 's/FlutterActivity/FlutterFragmentActivity/g' "$MAIN"
-          fi
-
-          GRADLE="android/app/build.gradle.kts"
-          if [ -f "$GRADLE" ]; then
-            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/' "$GRADLE"
-          fi
+          set -e
 
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST" ] && ! grep -q 'android.permission.USE_BIOMETRIC' "$MANIFEST"; then
+          GRADLE="android/app/build.gradle.kts"
+
+          test -f "$MANIFEST" || {
+            echo "AndroidManifest.xml was not generated"
+            exit 1
+          }
+
+          test -f "$GRADLE" || {
+            echo "build.gradle.kts was not generated"
+            exit 1
+          }
+
+          # Add Internet permission.
+          if ! grep -q 'android.permission.INTERNET' "$MANIFEST"; then
+            sed -i '/<application/i\    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST"
+          fi
+
+          # Add biometric permission.
+          if ! grep -q 'android.permission.USE_BIOMETRIC' "$MANIFEST"; then
             sed -i '/<application/i\    <uses-permission android:name="android.permission.USE_BIOMETRIC" />' "$MANIFEST"
           fi
+
+          # Configure minimum Android SDK.
+          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/' "$GRADLE"
+
+          echo "Internet and biometric permissions configured."
+
+          echo "Checking Android permissions:"
+          grep 'uses-permission' "$MANIFEST"
 
       - name: Configure Android SDK versions
         shell: bash
         run: |
-          find "$HOME/.pub-cache/hosted/pub.dev" -path "*/app_links-*/android/build.gradle" -type f -print -exec sed -i 's/flutter.compileSdkVersion/35/g; s/flutter.minSdkVersion/24/g; s/flutter.targetSdkVersion/35/g' {} \;
- 
+          find "$HOME/.pub-cache/hosted/pub.dev" \
+            -path "*/app_links-*/android/build.gradle" \
+            -type f \
+            -exec sed -i \
+            's/flutter.compileSdkVersion/35/g; s/flutter.minSdkVersion/24/g; s/flutter.targetSdkVersion/35/g' {} \; || true
+
       - name: Download dependencies
         run: flutter pub get
 
@@ -72,35 +94,78 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          test -n "$SUPABASE_URL" || (echo 'Missing SUPABASE_URL GitHub Secret' && exit 1)
-          test -n "$SUPABASE_KEY" || (echo 'Missing SUPABASE_KEY GitHub Secret' && exit 1)
+          test -n "$SUPABASE_URL" || {
+            echo "Missing SUPABASE_URL GitHub Secret"
+            exit 1
+          }
+
+          test -n "$SUPABASE_KEY" || {
+            echo "Missing SUPABASE_KEY GitHub Secret"
+            exit 1
+          }
 
       - name: Build Android APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: flutter build apk --release --dart-define=SUPABASE_URL="$SUPABASE_URL" --dart-define=SUPABASE_KEY="$SUPABASE_KEY"
+        run: |
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_KEY="$SUPABASE_KEY"
+
+      - name: Verify Internet permission in APK manifest
+        shell: bash
+        run: |
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+
+          test -f "$APK" || {
+            echo "APK file was not generated"
+            exit 1
+          }
+
+          echo "APK generated successfully."
+          echo "Checking merged manifest with Android SDK tools."
+
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          AAPT="$(find "$SDK/build-tools" -name aapt -type f 2>/dev/null | sort -V | tail -n 1)"
+
+          if [ -n "$AAPT" ]; then
+            "$AAPT" dump permissions "$APK"
+            "$AAPT" dump permissions "$APK" | grep -q 'android.permission.INTERNET' || {
+              echo "ERROR: Internet permission missing from APK"
+              exit 1
+            }
+            echo "Internet permission verified."
+          else
+            echo "WARNING: aapt not found; manifest verification skipped."
+          fi
 
       - name: Build website
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: flutter build web --release --dart-define=SUPABASE_URL="$SUPABASE_URL" --dart-define=SUPABASE_KEY="$SUPABASE_KEY"
+        run: |
+          flutter build web --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_KEY="$SUPABASE_KEY"
 
       - name: Save Android APK
         uses: actions/upload-artifact@v4
         with:
           name: mada-pay-central-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
 
       - name: Save website files
         uses: actions/upload-artifact@v4
         with:
           name: mada-pay-central-website
           path: build/web/**
+          if-no-files-found: error
 
       - name: Save dependency lock file
         uses: actions/upload-artifact@v4
         with:
           name: mada-pay-central-dependency-lock
           path: pubspec.lock
+          if-no-files-found: error

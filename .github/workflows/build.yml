@@ -56,6 +56,11 @@ jobs:
             sed -i '/<application/i\    <uses-permission android:name="android.permission.USE_BIOMETRIC" />' "$MANIFEST"
           fi
 
+      - name: Configure Android SDK versions
+        shell: bash
+        run: |
+          find "$HOME/.pub-cache/hosted/pub.dev" -path "*/app_links-*/android/build.gradle" -type f -print -exec sed -i 's/flutter.compileSdkVersion/35/g; s/flutter.minSdkVersion/24/g; s/flutter.targetSdkVersion/35/g' {} \;
+ 
       - name: Download dependencies
         run: flutter pub get
 

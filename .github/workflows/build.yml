@@ -73,7 +73,11 @@ jobs:
             echo "Configured Groovy Gradle file."
           else
             echo "WARNING: Gradle file not found at the expected paths."
-            find android -maxdepth 4 -type f \( -name 'build.gradle' -o -name 'build.gradle.kts' \)
+            find android -maxdepth 4 -type f \( 
+            
+            -name 'build.gradle' -o 
+            
+            -name 'build.gradle.kts' \)
             exit 1
           fi
 

@@ -38,23 +38,18 @@ jobs:
       - name: Generate Android and Web platform files
         run: flutter create --platforms=android,web --project-name=mada_pay_central .
 
-      - name: Configure Android permissions and SDK
+            - name: Configure Android permissions and SDK
         shell: bash
         run: |
           set -e
 
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          GRADLE="android/app/build.gradle.kts"
 
-          test -f "$MANIFEST" || {
-            echo "AndroidManifest.xml was not generated"
+          if [ ! -f "$MANIFEST" ]; then
+            echo "ERROR: AndroidManifest.xml was not generated"
+            find android -maxdepth 5 -type f 2>/dev/null || true
             exit 1
-          }
-
-          test -f "$GRADLE" || {
-            echo "build.gradle.kts was not generated"
-            exit 1
-          }
+          fi
 
           # Add Internet permission.
           if ! grep -q 'android.permission.INTERNET' "$MANIFEST"; then
@@ -66,12 +61,23 @@ jobs:
             sed -i '/<application/i\    <uses-permission android:name="android.permission.USE_BIOMETRIC" />' "$MANIFEST"
           fi
 
-          # Configure minimum Android SDK.
-          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/' "$GRADLE"
+          # Support either Kotlin DSL or Groovy Gradle files.
+          GRADLE_KTS="android/app/build.gradle.kts"
+          GRADLE_GROOVY="android/app/build.gradle"
 
-          echo "Internet and biometric permissions configured."
+          if [ -f "$GRADLE_KTS" ]; then
+            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/' "$GRADLE_KTS"
+            echo "Configured Kotlin Gradle file."
+          elif [ -f "$GRADLE_GROOVY" ]; then
+            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' "$GRADLE_GROOVY"
+            echo "Configured Groovy Gradle file."
+          else
+            echo "WARNING: Gradle file not found at the expected paths."
+            find android -maxdepth 4 -type f \( -name 'build.gradle' -o -name 'build.gradle.kts' \)
+            exit 1
+          fi
 
-          echo "Checking Android permissions:"
+          echo "Android permissions configured:"
           grep 'uses-permission' "$MANIFEST"
 
       - name: Configure Android SDK versions

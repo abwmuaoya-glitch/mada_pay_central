@@ -38,7 +38,7 @@ jobs:
       - name: Generate Android and Web platform files
         run: flutter create --platforms=android,web --project-name=mada_pay_central .
 
-            - name: Configure Android permissions and SDK
+      - name: Configure Android permissions and SDK
         shell: bash
         run: |
           set -e

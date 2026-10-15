@@ -116,7 +116,7 @@ class _SparklePainter extends CustomPainter {
 
       // هالة ضوئية ناعمة.
       final haloPaint = Paint()
-        ..color = color.withOpacity(opacity * 0.28)
+        ..color = color.withOpacity(0.5)
         ..maskFilter = const MaskFilter.blur(
           BlurStyle.normal,
           3,

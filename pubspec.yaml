@@ -1,11 +1,21 @@
+name: mada_pay_central
+description: Mada Pay Central platform for Android and Web.
+publish_to: 'none'
+version: 1.1.0+2
+environment:
+  sdk: '>=3.5.0 <4.0.0'
 dependencies:
-  supabase_flutter: 2.8.0   # بدون ^
-  google_fonts: 6.2.1       # بدون ^
-  fl_chart: 0.69.2          # بدون ^
+  flutter:
+    sdk: flutter
+  supabase_flutter: 2.8.0
+  google_fonts: 6.2.1
+  fl_chart: 0.70.2
   url_launcher: 6.3.1
   shared_preferences: 2.3.2
   local_auth: 2.3.0
-  intl: 0.19.0              # مثبت لمنع التعارض
-
-dependency_overrides:
-  intl: 0.19.0              # يمنع تعارض google_fonts مع fl_chart
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 4.0.0
+flutter:
+  uses-material-design: true

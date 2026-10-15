@@ -1,51 +1,74 @@
 name: Deploy Mada Pay Website to Cloudflare Pages
+
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - 'lib/**'
       - 'web/**'
       - 'pubspec.yaml'
       - 'pubspec.lock'
       - '.github/workflows/deploy-website.yml'
+
 permissions:
   contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.5'
           channel: stable
           cache: true
+
       - name: Generate Web platform files
         run: flutter create --platforms=web --project-name=mada_pay_central .
-      - name: Resolve dependencies
+
+      - name: Get dependencies
         run: flutter pub get
+
       - name: Verify Supabase configuration
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          test -n "$SUPABASE_URL" || (echo 'Missing SUPABASE_URL GitHub Secret' && exit 1)
-          test -n "$SUPABASE_KEY" || (echo 'Missing SUPABASE_KEY GitHub Secret' && exit 1)
-      - name: Build website
+          test -n "$SUPABASE_URL" || (echo "Missing SUPABASE_URL" && exit 1)
+          test -n "$SUPABASE_KEY" || (echo "Missing SUPABASE_KEY" && exit 1)
+
+      - name: Build Flutter Web
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: flutter build web --release --dart-define=SUPABASE_URL="$SUPABASE_URL" --dart-define=SUPABASE_KEY="$SUPABASE_KEY"
-      - name: Deploy to free commercial Cloudflare Pages hosting
+        run: |
+          flutter build web --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_KEY="$SUPABASE_KEY"
+
+      - name: Verify generated website
+        run: |
+          test -f build/web/index.html
+          test -f build/web/flutter.js
+          test -d build/web/assets
+          echo "Flutter Web files verified successfully."
+          find build/web -maxdepth 2 -type f | head -30
+
+      - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        shell: bash
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in GitHub Actions secrets, then rerun this workflow."
-            exit 1
-          fi
-          npx --yes wrangler@3.91.0 pages project create mada-pay-central --production-branch main || true
-          npx --yes wrangler@3.91.0 pages deploy build/web --project-name=mada-pay-central --branch=main
+          test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing CLOUDFLARE_API_TOKEN" && exit 1)
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing CLOUDFLARE_ACCOUNT_ID" && exit 1)
+
+          npx --yes wrangler@3.91.0 pages deploy build/web \
+            --project-name=mada-pay-central \
+            --branch=main

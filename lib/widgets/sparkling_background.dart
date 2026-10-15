@@ -116,7 +116,7 @@ class _SparklePainter extends CustomPainter {
 
       // هالة ضوئية ناعمة.
       final haloPaint = Paint()
-        ..color = color.withValues(alpha: opacity * 0.28)
+        ..color = color.withOpacity(opacity * 0.28)
         ..maskFilter = const MaskFilter.blur(
           BlurStyle.normal,
           3,
@@ -130,7 +130,7 @@ class _SparklePainter extends CustomPainter {
 
       // قلب الوميض اللامع.
       final corePaint = Paint()
-        ..color = Colors.white.withValues(alpha: opacity);
+        ..color = Colors.white.withOpacity(opacity);
 
       canvas.drawCircle(
         center,
@@ -141,7 +141,7 @@ class _SparklePainter extends CustomPainter {
       // ومضات صغيرة على شكل ألماسة تظهر عند ذروة اللمعان.
       if (glow > 0.88 && sparkle.radius > 1.25) {
         final diamondPaint = Paint()
-          ..color = color.withValues(alpha: opacity)
+          ..color = color.withOpacity(opacity)
           ..strokeWidth = 0.6
           ..strokeCap = StrokeCap.round;
 

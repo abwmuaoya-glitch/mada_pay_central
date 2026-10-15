@@ -289,12 +289,12 @@ class _ModernMadaLoginState extends State<ModernMadaLogin> {
             color: const Color(0xFFFFD76A),
           ),
           suffixIcon: suffix,
-          filled: true,
-          fillColor: const Color(0xFF10213A).withValues(alpha: 0.96),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 15,
-            vertical: 20,
-          ),
+filled: true,
+fillColor: const Color(0xFF10213A).withOpacity(0.96),
+contentPadding: const EdgeInsets.symmetric(
+  horizontal: 15,
+  vertical: 20,
+),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
             borderSide: const BorderSide(

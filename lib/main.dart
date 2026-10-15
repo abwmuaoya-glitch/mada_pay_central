@@ -1,18 +1,24 @@
+
 import 'dart:math' as math;
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/dependency_mediator.dart';
+import 'theme/mada_theme.dart';
+import 'screens/login_screen.dart';
+import 'screens/dashboard_screen.dart';
+import 'screens/users_screen.dart';
+import 'screens/services_screens.dart';
 
-const emerald = Color(0xFFD4AF37);
-const navy = Color(0xFF0A1931);
-const gold = Color(0xFFD4AF37);
-const lightGold = Color(0xFFE8C765);
-const mutedGold = Color(0xFFB89A5A);
-const cardDark = Color(0xFF1A2744);
+const gold = MadaColors.gold;
+const lightGold = MadaColors.lightGold;
+const navy = MadaColors.navy;
+const deepNavy = MadaColors.deepNavy;
+const cardDark = MadaColors.cardDark;
+
+bool _supabaseReady = false;
+SupabaseClient? get db => _supabaseReady ? Supabase.instance.client : null;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,19 +31,16 @@ Future<void> main() async {
   runApp(const MadaCentralApp());
 }
 
-bool _supabaseReady = false;
-SupabaseClient? get db => _supabaseReady ? Supabase.instance.client : null;
-
 Future<String> getMadaDeviceId() async {
   final prefs = await SharedPreferences.getInstance();
-  const key = 'mada_pay_installation_device_id';
-  final existing = prefs.getString(key);
+  const k = 'mada_pay_installation_device_id';
+  final existing = prefs.getString(k);
   if (existing != null && existing.isNotEmpty) return existing;
-  final random = math.Random.secure();
+  final r = math.Random.secure();
   final stamp = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
-  final salt = List.generate(24, (_) => random.nextInt(16).toRadixString(16)).join();
-  final created = 'MADA-$stamp-$salt';
-  await prefs.setString(key, created);
+  final salt = List.generate(24, (_) => r.nextInt(16).toRadixString(16)).join();
+  final created = 'MADA-\$stamp-\$salt';
+  await prefs.setString(k, created);
   return created;
 }
 
@@ -46,73 +49,108 @@ class MadaCentralApp extends StatefulWidget {
   @override State<MadaCentralApp> createState() => _MadaCentralAppState();
 }
 class _MadaCentralAppState extends State<MadaCentralApp> {
-  bool dark = true;
   @override Widget build(BuildContext context) {
-    final brightness = dark ? Brightness.dark : Brightness.light;
-    final scheme = ColorScheme.fromSeed(seedColor: gold, brightness: brightness).copyWith(
-      primary: lightGold, secondary: gold, surface: dark ? cardDark : Colors.white,
-      onPrimary: navy, onSecondary: navy,
-    );
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'مدى باي | المنظومة المركزية',
-      theme: ThemeData(
-        useMaterial3: true, colorScheme: scheme,
-        scaffoldBackgroundColor: dark ? navy : const Color(0xFFF6F3EA),
-        textTheme: GoogleFonts.cairoTextTheme(ThemeData(brightness: brightness).textTheme),
-        appBarTheme: const AppBarTheme(backgroundColor: navy, foregroundColor: lightGold, centerTitle: true),
-        inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: dark ? cardDark : Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: gold.withOpacity(.30))),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: lightGold, width: 1.7))),
-        cardTheme: CardTheme(elevation: 1, color: dark ? cardDark : Colors.white,
-          shadowColor: gold.withOpacity(.10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: dark ? gold.withOpacity(.15) : const Color(0xFFE8DFC5)))),
-        elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(elevation: 7, shadowColor: gold.withOpacity(.35), backgroundColor: lightGold, foregroundColor: navy, minimumSize: const Size(48, 48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)))),
-        filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(elevation: 5, shadowColor: gold.withOpacity(.28), backgroundColor: lightGold, foregroundColor: navy, minimumSize: const Size(48, 48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)))),
-      ),
-      home: db == null ? const SetupScreen() : AuthGate(onTheme: () => setState(() => dark = !dark), dark: dark),
+      title: 'وكالة مدى باي المركزية',
+      theme: MadaTheme.darkTheme,
+      home: db == null ? const SetupScreen() : const AuthGate(),
     );
   }
 }
 
 class SetupScreen extends StatelessWidget {
   const SetupScreen({super.key});
-  @override Widget build(BuildContext context) => Scaffold(body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520), child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [const BrandMark(size: 84), const SizedBox(height: 22), const Text('مدى باي | النظام المركزي', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)), const SizedBox(height: 12), const Text('أضف SUPABASE_URL وSUPABASE_KEY إلى إعدادات البناء لربط المشروع بقاعدة البيانات الموجودة.', textAlign: TextAlign.center), const SizedBox(height: 18), const Text('لن يتم إنشاء قاعدة بيانات بديلة أو استبدال جداولك الحالية.', style: TextStyle(color: emerald, fontWeight: FontWeight.bold))])))));
+  @override Widget build(BuildContext context) => Scaffold(body: Container(
+    decoration: const BoxDecoration(gradient: RadialGradient(colors: [Color(0xFF132347), deepNavy], center: Alignment.topCenter, radius: 1.2)),
+    child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(width:92,height:92,decoration: BoxDecoration(gradient: const LinearGradient(colors: [lightGold, gold]), borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.account_balance_wallet, size: 48, color: navy)),
+      const SizedBox(height: 18),
+      Text('وكالة مدى باي المركزية', style: GoogleFonts.cairo(fontSize: 26, fontWeight: FontWeight.w900, color: lightGold)),
+    ])),
+  ));
 }
 
 class AuthGate extends StatelessWidget {
-  final VoidCallback onTheme; final bool dark;
-  const AuthGate({super.key, required this.onTheme, required this.dark});
+  const AuthGate({super.key});
   @override Widget build(BuildContext context) => StreamBuilder<AuthState>(
-    stream: db!.auth.onAuthStateChange,
-    builder: (context, _) => db!.auth.currentSession == null
-      ? LoginScreen(onTheme: onTheme, dark: dark)
-      : RoleGate(onTheme: onTheme, dark: dark),
+    stream: Supabase.instance.client.auth.onAuthStateChange,
+    builder: (context, _) => Supabase.instance.client.auth.currentSession == null ? const LoginScreen(onTheme: {}, dark: true) : const OwnerShell(),
   );
 }
 
-class RoleGate extends StatefulWidget {
-  final VoidCallback onTheme; final bool dark;
-  const RoleGate({super.key, required this.onTheme, required this.dark});
-  @override State<RoleGate> createState() => _RoleGateState();
+class OwnerShell extends StatefulWidget {
+  const OwnerShell({super.key});
+  @override State<OwnerShell> createState()=> _OwnerShellState();
 }
-class _RoleGateState extends State<RoleGate> {
-  late Future<String> destination;
-  @override void initState() { super.initState(); destination = resolveDestination(); }
-  Future<String> resolveDestination() async {
-    final user = db!.auth.currentUser;
-    if (user == null) return 'LOGIN';
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('mada_biometric_enabled') == true) {
-      try {
-        final auth = LocalAuthentication();
-        final supported = await auth.isDeviceSupported();
-        if (supported) {
-          final passed = await auth.authenticate(localizedReason: 'افتح حساب مدى باي بعد التحقق من هويتك', options: const AuthenticationOptions(biometricOnly: false, stickyAuth: true));
-          if (!passed) return 'BIOMETRIC_LOCKED';
-        } else { return 'BIOMETRIC_LOCKED'; }
-      } catch (_) { return 'BIOMETRIC_LOCKED'; }
-    }
+class _OwnerShellState extends State<OwnerShell> {
+  int idx = 2;
+  final pages = [
+    const TransactionsPage(),
+    const UsersManagementPage(),
+    const OwnerDashboardPage(),
+    const ReportsPage(),
+    const ProfilePage(),
+  ];
+  @override Widget build(BuildContext context){
+    return Scaffold(
+      body: Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF0D1B35), deepNavy])), child: pages[idx]),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(color: deepNavy, border: Border(top: BorderSide(color: gold.withOpacity(0.22)))),
+        child: BottomNavigationBar(
+          currentIndex: idx,
+          onTap: (i)=>setState(()=>idx=i),
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: deepNavy,
+          selectedItemColor: gold,
+          unselectedItemColor: Colors.white.withOpacity(0.55),
+          selectedLabelStyle: GoogleFonts.cairo(fontWeight: FontWeight.w700, fontSize: 11),
+          unselectedLabelStyle: GoogleFonts.cairo(fontSize: 10),
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.receipt_long_outlined), activeIcon: Icon(Icons.receipt_long), label: 'المعاملات'),
+            BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'المستخدمون'),
+            BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home, size: 28), label: 'الرئيسية'),
+            BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), activeIcon: Icon(Icons.bar_chart), label: 'التقارير'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'الملف الشخصي'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class TransactionsPage extends StatelessWidget {
+  const TransactionsPage({super.key});
+  @override Widget build(BuildContext context)=> SafeArea(child: Center(child: Text('المعاملات - مربوطة بـ Supabase', style: GoogleFonts.cairo(color: Colors.white70))));
+}
+class ReportsPage extends StatelessWidget {
+  const ReportsPage({super.key});
+  @override Widget build(BuildContext context)=> SafeArea(child: Center(child: Text('التقارير المالية', style: GoogleFonts.cairo(color: Colors.white70))));
+}
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+  @override Widget build(BuildContext context)=> SafeArea(child: Padding(padding: const EdgeInsets.all(18), child: Column(children: [
+    Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(22), border: Border.all(color: gold.withOpacity(0.2))), child: Column(children: [
+      const CircleAvatar(radius: 36, backgroundColor: gold, child: Icon(Icons.person, size: 36, color: navy)),
+      const SizedBox(height: 10),
+      Text('مالك المنظومة', style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+      Text('owner@mada-pay.com', style: GoogleFonts.cairo(color: Colors.white54, fontSize: 12)),
+      const SizedBox(height: 14),
+      _ProfileTile(icon: Icons.security_outlined, title: 'إعدادات الأمان'),
+      _ProfileTile(icon: Icons.notifications_outlined, title: 'الإشعارات'),
+      _ProfileTile(icon: Icons.language, title: 'اللغة والمنطقة (SAR)'),
+      _ProfileTile(icon: Icons.devices_outlined, title: 'إدارة الأجهزة'),
+      _ProfileTile(icon: Icons.backup_outlined, title: 'النسخ الاحتياطي'),
+      const SizedBox(height: 12),
+      SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () async { await Supabase.instance.client.auth.signOut(); }, icon: const Icon(Icons.logout, color: Colors.redAccent), label: Text('تسجيل الخروج', style: GoogleFonts.cairo(color: Colors.redAccent)), style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.red.withOpacity(0.4))))),
+    ])),
+  ])));
+}
+class _ProfileTile extends StatelessWidget {
+  final IconData icon; final String title;
+  const _ProfileTile({required this.icon, required this.title});
+  @override Widget build(BuildContext context)=> ListTile(leading: Container(width:38,height:38,decoration: BoxDecoration(color: gold.withOpacity(0.12), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: gold, size: 20)), title: Text(title, style: GoogleFonts.cairo(color: Colors.white, fontSize: 13)), trailing: const Icon(Icons.chevron_right, color: Colors.white38), onTap: (){}, contentPadding: EdgeInsets.zero);
+}
     final profile = await db!.from('profiles').select('status').eq('id', user.id).maybeSingle();
     if (profile == null || profile['status']?.toString().toUpperCase() != 'ACTIVE') return 'INACTIVE';
     try {

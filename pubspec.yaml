@@ -1,17 +1,32 @@
-
 name: mada_pay_central
-description: Mada Pay Central - Minimal Build Fix
+description: Mada Pay Central - Central Financial and Digital Services
 publish_to: 'none'
 version: 1.1.0+5
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-  flutter: ">=3.24.0"
 
 dependencies:
   flutter:
     sdk: flutter
+
+  # اتصال Supabase
   supabase_flutter: 2.5.6
+
+  # الخطوط العربية
+  google_fonts: 6.2.1
+
+  # الرسوم البيانية
+  fl_chart: 0.69.0
+
+  # المصادقة بالبصمة
+  local_auth: 2.3.0
+
+  # التخزين المحلي
+  shared_preferences: 2.3.2
+
+  # فتح الروابط الخارجية
+  url_launcher: 6.3.1
 
 dev_dependencies:
   flutter_test:
